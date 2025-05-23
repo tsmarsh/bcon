@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BCon - P2P Audio Network</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="icon"
+        href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' fill='%236366f1' rx='4'/><text x='16' y='22' font-family='Arial' font-size='14' font-weight='bold' fill='white' text-anchor='middle'>BC</text></svg>">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pako/2.1.0/pako.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+</head>
+
+<body>
+    <div class="container">
+        <header>
+            <h1>BCon Network</h1>
+            <div class="user-info">
+                <input type="text" id="nickname" placeholder="Your nickname" maxlength="20">
+                <span id="connection-count">Peers: 0</span>
+            </div>
+        </header>
+
+        <main>
+            <!-- Connection Controls -->
+            <section class="connection-controls">
+                <h2>Connection Management</h2>
+                <div class="control-buttons">
+                    <button id="create-invite" class="primary-btn">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                            <path d="M12 5v14m-7-7h14" />
+                        </svg>
+                        Create Invite
+                    </button>
+                    <button id="join-room" class="secondary-btn">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                            <path d="M8 12h8m-4-4v8" />
+                        </svg>
+                        Join via URL
+                    </button>
+                </div>
+
+                <!-- Join Input -->
+                <div id="join-input" class="join-input hidden">
+                    <input type="text" id="invite-url" placeholder="Paste invite URL here">
+                    <button id="process-invite">Process Invite</button>
+                </div>
+
+                <!-- Answer Input -->
+                <div id="answer-input" class="answer-input hidden">
+                    <h3>Complete Connection</h3>
+                    <p>Paste the answer from your peer:</p>
+                    <textarea id="answer-blob" placeholder="Paste answer here"></textarea>
+                    <button id="complete-connection">Complete Connection</button>
+                </div>
+            </section>
+
+            <!-- Peer Grid -->
+            <section class="peer-grid">
+                <h2>Connected Peers</h2>
+                <div id="peers-container" class="peers-container">
+                    <!-- Peer cards will be dynamically inserted here -->
+                </div>
+            </section>
+
+            <!-- Status Messages -->
+            <section class="status-section">
+                <div id="status-messages" class="status-messages"></div>
+            </section>
+        </main>
+
+        <!-- Modals -->
+        <div id="invite-modal" class="modal hidden">
+            <div class="modal-content">
+                <button class="close-modal">&times;</button>
+                <h2>Share Invite Link</h2>
+                <div class="invite-options">
+                    <div class="qr-container">
+                        <div id="qrcode"></div>
+                    </div>
+                    <div class="url-container">
+                        <input type="text" id="invite-url-display" readonly>
+                        <button id="copy-url">Copy URL</button>
+                    </div>
+                    <div class="waiting-status">
+                        <p>Waiting for peer to connect...</p>
+                        <div class="spinner"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="answer-modal" class="modal hidden">
+            <div class="modal-content">
+                <button class="close-modal">&times;</button>
+                <h2>Connection Answer</h2>
+                <p>Share this answer with the inviter:</p>
+                <textarea id="answer-display" readonly></textarea>
+                <button id="copy-answer">Copy Answer</button>
+            </div>
+        </div>
+    </div>
+
+    <script type="module" src="app.js"></script>
+</body>
+
+</html>
