@@ -56,8 +56,31 @@
                 </div>
             </section>
 
+            <!-- Spatial View -->
+            <section class="spatial-view">
+                <h2>Spatial Audio View</h2>
+                <div class="spatial-controls">
+                    <button id="toggle-spatial-view" class="toggle-btn">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                            <path d="M21 12h-8m0 0l3-3m-3 3l3 3M3 12h8m0 0l-3-3m3 3l-3 3" />
+                        </svg>
+                        Toggle View
+                    </button>
+                    <span class="spatial-hint">Drag peers to position them in 2D space</span>
+                </div>
+                <div id="spatial-container" class="spatial-container">
+                    <div id="spatial-canvas" class="spatial-canvas">
+                        <!-- User position (center) -->
+                        <div id="user-avatar" class="spatial-avatar user-avatar">
+                            <span>You</span>
+                        </div>
+                        <!-- Peer avatars will be added here -->
+                    </div>
+                </div>
+            </section>
+
             <!-- Peer Grid -->
-            <section class="peer-grid">
+            <section class="peer-grid hidden">
                 <h2>Connected Peers</h2>
                 <div id="peers-container" class="peers-container">
                     <!-- Peer cards will be dynamically inserted here -->

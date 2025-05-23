@@ -38,11 +38,23 @@ export class UIController {
 
             answerModal: document.getElementById('answer-modal'),
             answerDisplay: document.getElementById('answer-display'),
-            copyAnswerBtn: document.getElementById('copy-answer')
+            copyAnswerBtn: document.getElementById('copy-answer'),
+
+            // Spatial view
+            spatialCanvas: document.getElementById('spatial-canvas'),
+            spatialContainer: document.getElementById('spatial-container'),
+            toggleSpatialBtn: document.getElementById('toggle-spatial-view'),
+            spatialView: document.querySelector('.spatial-view'),
+            peerGrid: document.querySelector('.peer-grid')
         };
 
         // QR code instance
         this.qrcode = null;
+
+        // Spatial view state
+        this.isSpatialView = true;
+        this.draggedPeer = null;
+        this.dragOffset = { x: 0, y: 0 };
 
         // Bind event listeners
         this.bindEventListeners();
@@ -88,6 +100,20 @@ export class UIController {
 
         // Check for invite in URL on load
         this.checkForInviteInUrl();
+
+        // Spatial view toggle
+        this.elements.toggleSpatialBtn.addEventListener('click', () => this.toggleView());
+
+        // Spatial drag and drop
+        this.elements.spatialCanvas.addEventListener('mousedown', (e) => this.handleSpatialMouseDown(e));
+        this.elements.spatialCanvas.addEventListener('mousemove', (e) => this.handleSpatialMouseMove(e));
+        this.elements.spatialCanvas.addEventListener('mouseup', (e) => this.handleSpatialMouseUp(e));
+        this.elements.spatialCanvas.addEventListener('mouseleave', (e) => this.handleSpatialMouseUp(e));
+
+        // Touch support for mobile
+        this.elements.spatialCanvas.addEventListener('touchstart', (e) => this.handleSpatialTouchStart(e));
+        this.elements.spatialCanvas.addEventListener('touchmove', (e) => this.handleSpatialTouchMove(e));
+        this.elements.spatialCanvas.addEventListener('touchend', (e) => this.handleSpatialTouchEnd(e));
     }
 
     /**
@@ -98,6 +124,7 @@ export class UIController {
         this.stateManager.on('peerRemoved', (data) => this.handlePeerRemoved(data));
         this.stateManager.on('localMediaStateChanged', (data) => this.updatePeerMediaControls(data.peerId));
         this.stateManager.on('remoteMediaStateChanged', (data) => this.updatePeerMediaControls(data.peerId));
+        this.stateManager.on('peerPositionChanged', (data) => this.updatePeerSpatialPosition(data.peerId, data.position));
     }
 
     /**
@@ -263,9 +290,13 @@ export class UIController {
     handlePeerAdded(data) {
         const { peerId, metadata } = data;
 
-        // Create peer card
+        // Create peer card for grid view
         const peerCard = this.createPeerCard(peerId, metadata);
         this.elements.peersContainer.appendChild(peerCard);
+
+        // Create spatial avatar
+        const spatialAvatar = this.createSpatialAvatar(peerId, metadata);
+        this.elements.spatialCanvas.appendChild(spatialAvatar);
 
         // Update connection count
         this.updateConnectionCount();
@@ -281,6 +312,12 @@ export class UIController {
         const peerCard = document.getElementById(`peer-${peerId}`);
         if (peerCard) {
             peerCard.remove();
+        }
+
+        // Remove spatial avatar
+        const spatialAvatar = document.getElementById(`spatial-${peerId}`);
+        if (spatialAvatar) {
+            spatialAvatar.remove();
         }
 
         // Update connection count
@@ -468,5 +505,184 @@ export class UIController {
         // Clear inputs
         this.elements.inviteUrlInput.value = '';
         this.elements.answerBlob.value = '';
+    }
+
+    /**
+     * Create spatial avatar for a peer
+     */
+    createSpatialAvatar(peerId, metadata) {
+        const avatar = document.createElement('div');
+        avatar.className = 'spatial-avatar peer-avatar';
+        avatar.id = `spatial-${peerId}`;
+        avatar.innerHTML = `
+            <span>${metadata.nickname || 'Peer'}</span>
+            <div class="distance-indicator"></div>
+        `;
+
+        // Set initial position
+        const position = metadata.position || { x: Math.random() * 4 - 2, y: Math.random() * 4 - 2 };
+        this.updatePeerSpatialPosition(peerId, position);
+
+        return avatar;
+    }
+
+    /**
+     * Update peer spatial position
+     */
+    updatePeerSpatialPosition(peerId, position) {
+        const avatar = document.getElementById(`spatial-${peerId}`);
+        if (!avatar) return;
+
+        const canvas = this.elements.spatialCanvas;
+        const canvasRect = canvas.getBoundingClientRect();
+
+        // Convert spatial coordinates to screen coordinates
+        const screenPos = this.webrtcManager.spatialAudioManager.spatialToScreen(
+            position,
+            canvasRect.width,
+            canvasRect.height
+        );
+
+        avatar.style.left = `${screenPos.x - 30}px`; // Center the avatar
+        avatar.style.top = `${screenPos.y - 30}px`;
+
+        // Update distance indicator
+        const distance = Math.sqrt(position.x * position.x + position.y * position.y);
+        const distanceEl = avatar.querySelector('.distance-indicator');
+        if (distanceEl) {
+            distanceEl.textContent = `${distance.toFixed(1)}m`;
+        }
+    }
+
+    /**
+     * Toggle between spatial and grid view
+     */
+    toggleView() {
+        this.isSpatialView = !this.isSpatialView;
+
+        if (this.isSpatialView) {
+            this.elements.spatialView.classList.remove('hidden');
+            this.elements.peerGrid.classList.add('hidden');
+        } else {
+            this.elements.spatialView.classList.add('hidden');
+            this.elements.peerGrid.classList.remove('hidden');
+        }
+    }
+
+    /**
+     * Handle mouse down on spatial canvas
+     */
+    handleSpatialMouseDown(e) {
+        const avatar = e.target.closest('.peer-avatar');
+        if (!avatar) return;
+
+        this.draggedPeer = avatar;
+        const rect = avatar.getBoundingClientRect();
+        const canvasRect = this.elements.spatialCanvas.getBoundingClientRect();
+
+        this.dragOffset = {
+            x: e.clientX - rect.left - 30,
+            y: e.clientY - rect.top - 30
+        };
+
+        avatar.style.zIndex = '30';
+    }
+
+    /**
+     * Handle mouse move on spatial canvas
+     */
+    handleSpatialMouseMove(e) {
+        if (!this.draggedPeer) return;
+
+        e.preventDefault();
+        const canvasRect = this.elements.spatialCanvas.getBoundingClientRect();
+
+        const x = e.clientX - canvasRect.left - this.dragOffset.x;
+        const y = e.clientY - canvasRect.top - this.dragOffset.y;
+
+        // Keep avatar within bounds
+        const boundedX = Math.max(0, Math.min(canvasRect.width - 60, x));
+        const boundedY = Math.max(0, Math.min(canvasRect.height - 60, y));
+
+        this.draggedPeer.style.left = `${boundedX}px`;
+        this.draggedPeer.style.top = `${boundedY}px`;
+    }
+
+    /**
+     * Handle mouse up on spatial canvas
+     */
+    handleSpatialMouseUp(e) {
+        if (!this.draggedPeer) return;
+
+        const peerId = this.draggedPeer.id.replace('spatial-', '');
+        const canvasRect = this.elements.spatialCanvas.getBoundingClientRect();
+
+        // Convert screen position to spatial coordinates
+        const screenPos = {
+            x: parseFloat(this.draggedPeer.style.left) + 30,
+            y: parseFloat(this.draggedPeer.style.top) + 30
+        };
+
+        const spatialPos = this.webrtcManager.spatialAudioManager.screenToSpatial(
+            screenPos,
+            canvasRect.width,
+            canvasRect.height
+        );
+
+        // Update position in WebRTC manager
+        this.webrtcManager.updatePeerPosition(peerId, spatialPos);
+
+        this.draggedPeer.style.zIndex = '10';
+        this.draggedPeer = null;
+    }
+
+    /**
+     * Handle touch start on spatial canvas
+     */
+    handleSpatialTouchStart(e) {
+        const touch = e.touches[0];
+        const avatar = touch.target.closest('.peer-avatar');
+        if (!avatar) return;
+
+        e.preventDefault();
+        this.draggedPeer = avatar;
+        const rect = avatar.getBoundingClientRect();
+
+        this.dragOffset = {
+            x: touch.clientX - rect.left - 30,
+            y: touch.clientY - rect.top - 30
+        };
+
+        avatar.style.zIndex = '30';
+    }
+
+    /**
+     * Handle touch move on spatial canvas
+     */
+    handleSpatialTouchMove(e) {
+        if (!this.draggedPeer) return;
+
+        e.preventDefault();
+        const touch = e.touches[0];
+        const canvasRect = this.elements.spatialCanvas.getBoundingClientRect();
+
+        const x = touch.clientX - canvasRect.left - this.dragOffset.x;
+        const y = touch.clientY - canvasRect.top - this.dragOffset.y;
+
+        const boundedX = Math.max(0, Math.min(canvasRect.width - 60, x));
+        const boundedY = Math.max(0, Math.min(canvasRect.height - 60, y));
+
+        this.draggedPeer.style.left = `${boundedX}px`;
+        this.draggedPeer.style.top = `${boundedY}px`;
+    }
+
+    /**
+     * Handle touch end on spatial canvas
+     */
+    handleSpatialTouchEnd(e) {
+        if (!this.draggedPeer) return;
+
+        e.preventDefault();
+        this.handleSpatialMouseUp(e);
     }
 } 

@@ -4,10 +4,12 @@
  */
 
 import { CompressionUtils } from './compression-utils.js';
+import { SpatialAudioManager } from './spatial-audio-manager.js';
 
 export class WebRTCManager {
     constructor(stateManager) {
         this.stateManager = stateManager;
+        this.spatialAudioManager = new SpatialAudioManager();
 
         // STUN/TURN servers configuration
         this.iceServers = [
@@ -329,11 +331,30 @@ export class WebRTCManager {
      * @param {boolean} muted - Whether to mute
      */
     toggleRemoteMute(peerId, muted) {
-        const remoteState = this.stateManager.remoteMediaState.get(peerId);
-        if (remoteState && remoteState.audioElement) {
-            remoteState.audioElement.muted = muted;
-            this.stateManager.updateRemoteMediaState(peerId, { isMuted: muted });
-        }
+        // Use spatial audio manager for muting
+        this.spatialAudioManager.setPeerMuted(peerId, muted);
+        this.stateManager.updateRemoteMediaState(peerId, { isMuted: muted });
+    }
+
+    /**
+     * Update peer position in 2D space
+     * @param {string} peerId - The peer ID
+     * @param {Object} position - New position {x, y}
+     */
+    updatePeerPosition(peerId, position) {
+        // Update spatial audio position
+        this.spatialAudioManager.updatePeerPosition(peerId, position);
+
+        // Update state
+        this.stateManager.updatePeerPosition(peerId, position);
+    }
+
+    /**
+     * Update listener (user) position
+     * @param {Object} position - New position {x, y}
+     */
+    updateListenerPosition(position) {
+        this.spatialAudioManager.updateListenerPosition(position);
     }
 
     /**
@@ -347,21 +368,35 @@ export class WebRTCManager {
             return;
         }
 
-        // Create audio element
-        const audio = new Audio();
-        audio.srcObject = stream;
-        audio.autoplay = true;
+        // Get peer position from metadata
+        const peerMetadata = this.stateManager.peerMetadata.get(peerId);
+        const position = peerMetadata?.position || { x: Math.random() * 4 - 2, y: Math.random() * 4 - 2 };
 
-        // Set up spatial audio (future feature)
-        // This is where we'd connect to Web Audio API PannerNode
+        // Create spatial audio
+        const audio = this.spatialAudioManager.createSpatialAudioForPeer(peerId, stream, position);
 
-        // Update state
-        this.stateManager.updateRemoteMediaState(peerId, {
-            track: track,
-            audioElement: audio
-        });
+        if (!audio) {
+            // Fallback to regular audio if spatial audio fails
+            const fallbackAudio = new Audio();
+            fallbackAudio.srcObject = stream;
+            fallbackAudio.autoplay = true;
 
-        console.log(`Received audio track from ${peerId}`);
+            this.stateManager.updateRemoteMediaState(peerId, {
+                track: track,
+                audioElement: fallbackAudio
+            });
+        } else {
+            // Update state with spatial audio
+            this.stateManager.updateRemoteMediaState(peerId, {
+                track: track,
+                audioElement: audio
+            });
+
+            // Save position in peer metadata
+            this.stateManager.updatePeerPosition(peerId, position);
+        }
+
+        console.log(`Received audio track from ${peerId} with spatial positioning`);
     }
 
     /**
@@ -388,6 +423,11 @@ export class WebRTCManager {
      */
     handlePeerClosed(peerId) {
         console.log(`Connection to peer ${peerId} closed`);
+
+        // Remove from spatial audio
+        this.spatialAudioManager.removePeer(peerId);
+
+        // Remove from state
         this.stateManager.removeConnection(peerId);
     }
 
@@ -395,6 +435,9 @@ export class WebRTCManager {
      * Clean up all connections
      */
     cleanup() {
+        // Clean up spatial audio
+        this.spatialAudioManager.cleanup();
+
         // State manager will handle connection cleanup
         this.stateManager.cleanup();
     }

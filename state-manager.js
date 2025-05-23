@@ -178,6 +178,21 @@ export class StateManager {
     }
 
     /**
+     * Update peer position
+     * @param {string} peerId - The peer ID
+     * @param {Object} position - New position {x, y}
+     */
+    updatePeerPosition(peerId, position) {
+        const metadata = this.peerMetadata.get(peerId);
+        if (metadata) {
+            metadata.position = position;
+            this.peerMetadata.set(peerId, metadata);
+            this.savePeerMetadata(peerId);
+            this.emit('peerPositionChanged', { peerId, position });
+        }
+    }
+
+    /**
      * Add a pending connection
      * @param {string} connectionId - The connection ID
      * @param {RTCPeerConnection} pc - The peer connection

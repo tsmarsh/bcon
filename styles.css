@@ -465,6 +465,131 @@ button svg {
     }
 }
 
+/* Spatial View */
+.spatial-view {
+    background-color: var(--bg-secondary);
+    padding: 1.5rem;
+    border-radius: 0.75rem;
+    margin-bottom: 2rem;
+    box-shadow: var(--shadow);
+}
+
+.spatial-view h2 {
+    font-size: 1.5rem;
+    margin-bottom: 1rem;
+    color: var(--text-primary);
+}
+
+.spatial-controls {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+}
+
+.toggle-btn {
+    background-color: var(--bg-tertiary);
+    border: 1px solid var(--border-color);
+    color: var(--text-primary);
+}
+
+.toggle-btn:hover {
+    background-color: var(--bg-primary);
+}
+
+.spatial-hint {
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+}
+
+.spatial-container {
+    background-color: var(--bg-primary);
+    border-radius: 0.5rem;
+    padding: 1rem;
+    min-height: 400px;
+    position: relative;
+    overflow: hidden;
+}
+
+.spatial-canvas {
+    position: relative;
+    width: 100%;
+    height: 400px;
+    background-image:
+        radial-gradient(circle at center, var(--bg-tertiary) 0%, transparent 70%),
+        repeating-linear-gradient(0deg, var(--border-color)33 0, var(--border-color)33 1px, transparent 1px, transparent 40px),
+        repeating-linear-gradient(90deg, var(--border-color)33 0, var(--border-color)33 1px, transparent 1px, transparent 40px);
+}
+
+.spatial-avatar {
+    position: absolute;
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.75rem;
+    font-weight: 600;
+    cursor: grab;
+    transition: transform 0.2s, box-shadow 0.2s;
+    user-select: none;
+    z-index: 10;
+}
+
+.spatial-avatar:active {
+    cursor: grabbing;
+    transform: scale(1.1);
+    z-index: 20;
+}
+
+.user-avatar {
+    background-color: var(--primary-color);
+    color: white;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    cursor: default;
+    box-shadow: 0 0 0 3px var(--primary-color)33;
+}
+
+.peer-avatar {
+    background-color: var(--secondary-color);
+    color: white;
+}
+
+.peer-avatar.speaking {
+    animation: pulseSpeaking 1s ease-in-out infinite;
+}
+
+@keyframes pulseSpeaking {
+    0% {
+        box-shadow: 0 0 0 0 var(--success-color);
+    }
+
+    50% {
+        box-shadow: 0 0 0 10px var(--success-color)00;
+    }
+
+    100% {
+        box-shadow: 0 0 0 0 var(--success-color)00;
+    }
+}
+
+.peer-avatar.muted {
+    opacity: 0.5;
+}
+
+.distance-indicator {
+    position: absolute;
+    bottom: -20px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 0.625rem;
+    color: var(--text-secondary);
+    white-space: nowrap;
+}
+
 /* Audio visualization (future feature) */
 .audio-visualizer {
     height: 40px;
